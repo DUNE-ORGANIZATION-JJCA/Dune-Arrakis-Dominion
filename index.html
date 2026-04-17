@@ -8,9 +8,240 @@
         <link rel="icon" href="icon/icon.png" type="image/png">
         <link rel="apple-touch-icon" href="icon/icon.png">
         <link rel="stylesheet" type="text/css" href="css/game.css">
+        
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+        
         <title>Dune Dominion</title>
+
+        <style>
+            /* ESTILOS DEL LOGIN RPG */
+            #firebase-login-screen {
+                position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+                /* Fondo por defecto: Degradado desértico oscuro */
+                background: radial-gradient(circle at center, #3b2313 0%, #0a0502 100%);
+                
+                /* Si prefieres una imagen de fondo, borra la línea de arriba y usa esta: */
+                /* background: url('img/titles1/TuFondoDelDesierto.png') no-repeat center center; background-size: cover; */
+                
+                z-index: 9999; display: flex; flex-direction: column; 
+                justify-content: center; align-items: center; 
+                transition: opacity 0.8s ease-in-out; /* Efecto de fundido */
+            }
+
+            .rpg-login-box {
+                background: rgba(20, 10, 5, 0.85); /* Marrón muy oscuro casi negro */
+                border: 2px solid #c5a059; /* Borde dorado apagado */
+                box-shadow: 0 0 20px rgba(197, 160, 89, 0.3), inset 0 0 15px rgba(0,0,0,0.8);
+                padding: 40px;
+                border-radius: 8px;
+                text-align: center;
+                font-family: 'Cinzel', serif;
+            }
+
+            .rpg-login-box h2 {
+                color: #e8d09e;
+                margin-top: 0;
+                font-size: 28px;
+                text-shadow: 2px 2px 4px #000;
+                letter-spacing: 2px;
+            }
+
+            .rpg-input {
+                background: rgba(0, 0, 0, 0.6);
+                border: 1px solid #755a33;
+                color: #e8d09e;
+                margin: 10px 5px; 
+                padding: 12px; 
+                width: 250px; 
+                font-family: sans-serif;
+                font-size: 14px;
+                outline: none;
+                transition: border 0.3s;
+            }
+
+            .rpg-input:focus {
+                border: 1px solid #c5a059;
+                box-shadow: 0 0 5px #c5a059;
+            }
+
+            .rpg-button {
+                padding: 12px 20px; 
+                cursor: pointer; 
+                background: linear-gradient(to bottom, #8a6327, #5c4014);
+                color: #f2e2c4; 
+                border: 1px solid #c5a059; 
+                font-family: 'Cinzel', serif;
+                font-weight: bold;
+                font-size: 16px;
+                margin: 5px;
+                transition: all 0.2s;
+            }
+
+            .rpg-button:hover {
+                background: linear-gradient(to bottom, #a87b33, #75531d);
+                box-shadow: 0 0 10px #c5a059;
+                text-shadow: 0 0 5px #fff;
+            }
+        </style>
     </head>
-    <body style="background-color: black">
+    <body style="background-color: black; margin: 0; overflow: hidden;">
+        
+        <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+        <div id="firebase-login-screen">
+            <div class="rpg-login-box">
+                <h2>Dune Dominion</h2>
+                <input type="email" id="email-input" class="rpg-input" placeholder="Correo de Comandante">
+                <br>
+                <input type="password" id="password-input" class="rpg-input" placeholder="Contraseña de Acceso">
+                <div style="margin-top: 20px;">
+                    <button onclick="loginFirebase()" class="rpg-button">Entrar</button>
+                    <button onclick="registerFirebase()" class="rpg-button">Reclutar</button>
+                </div>
+                <p id="login-error" style="color: #ff6b6b; margin-top: 15px; font-family: sans-serif; font-size: 13px;"></p>
+            </div>
+        </div>
+
+        <script>
+          // =========================================================
+          // !!! PEGA TUS DATOS DE FIREBASE AQUÍ !!!
+          // =========================================================
+            const firebaseConfig = {
+             apiKey: "AIzaSyDuOHoF_HK_giiquD_xYzEGe-8QTL2sabU",
+             authDomain: "dune-arrakis-dominion.firebaseapp.com",
+             databaseURL: "https://dune-arrakis-dominion-default-rtdb.europe-west1.firebasedatabase.app",
+             projectId: "dune-arrakis-dominion",
+             storageBucket: "dune-arrakis-dominion.firebasestorage.app",
+             messagingSenderId: "918712056471",
+             appId: "1:918712056471:web:cfd0dc77014f5a7f07c7d2"
+          };
+          // =========================================================
+
+         firebase.initializeApp(firebaseConfig);
+
+          // CERRAR CUALQUIER SESIÓN AL ABRIR EL JUEGO
+          firebase.auth().signOut();
+
+          const loginScreen = document.getElementById('firebase-login-screen');
+          const errorText = document.getElementById('login-error');
+
+          // PARCHE TOTAL DE CONTROLES
+          const eventosBloqueados = [
+              'keydown', 'keyup', 'keypress', 
+              'mousedown', 'mouseup', 'click', 
+              'pointerdown', 'pointerup', 
+              'touchstart', 'touchend'
+          ];
+          
+          eventosBloqueados.forEach(evento => {
+              loginScreen.addEventListener(evento, (e) => {
+                  e.stopPropagation(); 
+              });
+          });
+
+          // EFECTO DE DESVANECIMIENTO
+          function ocultarPantallaConEfecto() {
+              loginScreen.style.opacity = '0';
+              setTimeout(() => {
+                  loginScreen.style.display = 'none';
+              }, 800);
+          }
+
+          // === TRADUCTOR DE ERRORES DE FIREBASE ===
+          function traducirErrorFirebase(codigoError) {
+              switch (codigoError) {
+                  case 'auth/invalid-credential':
+                  case 'auth/user-not-found':
+                  case 'auth/wrong-password':
+                      return "Credenciales incorrectas. Este comandante no existe o la contraseña es errónea.";
+                  case 'auth/email-already-in-use':
+                      return "Ya existe un comandante registrado en nuestras filas con este correo.";
+                  case 'auth/too-many-requests':
+                      return "Demasiados intentos fallidos. Los sistemas de seguridad han bloqueado el acceso temporalmente. Espera unos minutos.";
+                  case 'auth/user-disabled':
+                      return "El acceso a esta cuenta ha sido revocado por el alto mando.";
+                  case 'auth/network-request-failed':
+                      return "Se ha perdido la conexión con los servidores. Comprueba tu acceso a internet.";
+                  default:
+                      return "Ha ocurrido un error inesperado en las comunicaciones. Inténtalo de nuevo.";
+              }
+          }
+
+          // === FILTRO DE SEGURIDAD LOCAL ===
+          function validarCredenciales(email, pass, esRegistro) {
+              const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!regexCorreo.test(email)) {
+                  return "Formato de correo inválido. Asegúrate de incluir un '@' y un dominio válido.";
+              }
+
+              if (esRegistro) {
+                  const regexContrasena = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+                  if (!regexContrasena.test(pass)) {
+                      return "La contraseña debe tener mínimo 8 caracteres, incluir una mayúscula y un número.";
+                  }
+              } else {
+                  if (pass.length === 0) {
+                      return "Por favor, introduce tu contraseña de acceso.";
+                  }
+              }
+              return "OK"; 
+          }
+
+          // BOTÓN ENTRAR
+          function loginFirebase() {
+              const email = document.getElementById('email-input').value;
+              const pass = document.getElementById('password-input').value;
+              
+              const validacion = validarCredenciales(email, pass, false);
+              if (validacion !== "OK") {
+                  errorText.innerText = validacion;
+                  return; 
+              }
+
+              errorText.innerText = "Estableciendo conexión con el servidor...";
+              
+              firebase.auth().setPersistence(firebase.auth.Auth.Persistence.NONE)
+                  .then(() => {
+                      return firebase.auth().signInWithEmailAndPassword(email, pass);
+                  })
+                  .then(() => { 
+                      ocultarPantallaConEfecto(); 
+                  })
+                  .catch(error => { 
+                      // Aquí interceptamos el código y mostramos nuestro mensaje
+                      errorText.innerText = traducirErrorFirebase(error.code); 
+                  });
+          }
+
+          // BOTÓN RECLUTAR (REGISTRARSE)
+          function registerFirebase() {
+              const email = document.getElementById('email-input').value;
+              const pass = document.getElementById('password-input').value;
+              
+              const validacion = validarCredenciales(email, pass, true);
+              if (validacion !== "OK") {
+                  errorText.innerText = validacion;
+                  return; 
+              }
+
+              errorText.innerText = "Registrando nuevo comandante en la base de datos...";
+              
+              firebase.auth().setPersistence(firebase.auth.Auth.Persistence.NONE)
+                  .then(() => {
+                      return firebase.auth().createUserWithEmailAndPassword(email, pass);
+                  })
+                  .then(() => { 
+                      ocultarPantallaConEfecto(); 
+                  })
+                  .catch(error => { 
+                      // Aquí también interceptamos el código
+                      errorText.innerText = traducirErrorFirebase(error.code); 
+                  });
+          }
+        </script>
+
         <script type="text/javascript" src="js/main.js"></script>
     </body>
 </html>
